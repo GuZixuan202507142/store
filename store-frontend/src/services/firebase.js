@@ -11,29 +11,82 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+// Validate Firebase configuration
+const requiredConfig = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+const missingConfig = requiredConfig.filter(key => !firebaseConfig[key]);
 
-// Initialize Gemini through Firebase AI Logic SDK equivalent
-// The @google/generative-ai SDK is the modern way to do this
-const genAI = new GoogleGenerativeAI("AIzaSyA2-M7sWX18X8unq1Hn1QKHOevUSiw9QRU"); // Using provided Gemini API Key
-export const geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+if (missingConfig.length > 0) {
+  console.error('Missing Firebase configuration:', missingConfig);
+}
+
+// Initialize Firebase
+let app = null;
+let db = null;
+
+try {
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+} catch (error) {
+  console.error('Failed to initialize Firebase:', error);
+}
+
+export { db };
+
+// Initialize Gemini AI
+let geminiModel = null;
+
+try {
+  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!geminiApiKey) {
+    throw new Error('VITE_GEMINI_API_KEY is not configured');
+  }
+  const genAI = new GoogleGenerativeAI(geminiApiKey);
+  geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+} catch (error) {
+  console.error('Failed to initialize Gemini AI:', error);
+}
+
+export { geminiModel };
 
 // Chat history functions
 export const getChatHistory = (sessionId, callback) => {
-    const messagesRef = collection(db, `chats/${sessionId}/messages`);
-    const q = query(messagesRef, orderBy("timestamp"));
-    return onSnapshot(q, (querySnapshot) => {
-        const messages = [];
-        querySnapshot.forEach((doc) => {
-            messages.push({ id: doc.id, ...doc.data() });
+    if (!db) {
+        console.error('Firebase not initialized');
+        callback([]);
+        return () => {}; // Return empty unsubscribe function
+    }
+    
+    try {
+        const messagesRef = collection(db, `chats/${sessionId}/messages`);
+        const q = query(messagesRef, orderBy("timestamp"));
+        return onSnapshot(q, (querySnapshot) => {
+            const messages = [];
+            querySnapshot.forEach((doc) => {
+                messages.push({ id: doc.id, ...doc.data() });
+            });
+            callback(messages);
+        }, (error) => {
+            console.error('Error fetching chat history:', error);
+            callback([]);
         });
-        callback(messages);
-    });
+    } catch (error) {
+        console.error('Error setting up chat history listener:', error);
+        callback([]);
+        return () => {};
+    }
 };
 
 export const saveMessage = async (sessionId, message) => {
-    const messagesRef = collection(db, `chats/${sessionId}/messages`);
-    await addDoc(messagesRef, message);
+    if (!db) {
+        console.error('Firebase not initialized');
+        throw new Error('Database not available');
+    }
+    
+    try {
+        const messagesRef = collection(db, `chats/${sessionId}/messages`);
+        await addDoc(messagesRef, message);
+    } catch (error) {
+        console.error('Error saving message:', error);
+        throw new Error('Failed to save message');
+    }
 };

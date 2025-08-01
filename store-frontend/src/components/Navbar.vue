@@ -12,7 +12,8 @@
         
         <!-- Navigation Links -->
         <div class="nav-links" :class="{ 'nav-open': isMenuOpen }">
-          <a href="#home" class="nav-link" @click="closeMenu">Home</a>
+          <a href="#" class="nav-link" @click="navigate('home')">Home</a>
+          <a href="#" class="nav-link" @click="navigate('orders')">我的订单</a>
           <a href="#products" class="nav-link" @click="closeMenu">Products</a>
           <a href="#about" class="nav-link" @click="closeMenu">About</a>
           <a href="#contact" class="nav-link" @click="closeMenu">Contact</a>
@@ -50,6 +51,7 @@
 <script>
 export default {
   name: 'Navbar',
+  emits: ['navigate'],
   data() {
     return {
       isMenuOpen: false,
@@ -62,6 +64,10 @@ export default {
     },
     closeMenu() {
       this.isMenuOpen = false
+    },
+    navigate(page) {
+      this.$emit('navigate', page)
+      this.closeMenu()
     }
   },
   mounted() {

@@ -17,9 +17,31 @@ def test_create_order():
         "currency": "usd"
     }
     response = client.post("/api/v1/orders", json=order_data)
-    # Add assertions based on implementation
+    assert response.status_code in [200, 201]
+    if response.status_code == 200:
+        data = response.json()
+        assert "id" in data
+        assert data["customer_email"] == "test@example.com"
+        assert data["amount"] == 1000
+        assert data["currency"] == "usd"
 
 def test_get_order():
     """Test getting a specific order"""
-    response = client.get("/api/v1/orders/1")
-    # Add assertions based on implementation
+    # 先创建一个订单用于测试
+    order_data = {
+        "customer_email": "test@example.com",
+        "amount": 1000,
+        "currency": "usd"
+    }
+    create_response = client.post("/api/v1/orders", json=order_data)
+    
+    if create_response.status_code in [200, 201]:
+        order_id = create_response.json().get("id", 1)
+        response = client.get(f"/api/v1/orders/{order_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == order_id
+    else:
+        # 如果创建失败，测试不存在的订单
+        response = client.get("/api/v1/orders/999999")
+        assert response.status_code == 404

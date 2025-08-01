@@ -4,18 +4,22 @@ from typing import Optional
 
 class OrderCreate(BaseModel):
     customer_email: EmailStr
-    amount: int
-    currency: str = "usd"
+    product_name: str
+    amount_total: int
 
 class OrderResponse(BaseModel):
     id: int
     customer_email: str
-    amount: int
-    currency: str
+    stripe_checkout_session_id: str
     status: str
-    stripe_payment_intent_id: Optional[str]
     created_at: datetime
-    updated_at: datetime
+    product_name: str
+    amount_total: int
 
     class Config:
         from_attributes = True
+
+class OrderUpdate(BaseModel):
+    status: Optional[str] = None
+    product_name: Optional[str] = None
+    amount_total: Optional[int] = None

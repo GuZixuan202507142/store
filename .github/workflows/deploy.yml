@@ -1,0 +1,96 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: guzixuan202507142
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./store-backend
+          file: ./store-backend/Dockerfile.prod
+          push: true
+          tags: guzixuan202507142/copilot-store-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./store-frontend
+          file: ./store-frontend/Dockerfile.prod
+          push: true
+          tags: guzixuan202507142/copilot-store-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to DigitalOcean Droplet
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_DROPLET_IP }}
+          username: root
+          password: ${{ secrets.DO_DROPLET_PASSWORD }}
+          script: |
+            # Ensure we're in the project directory
+            cd ~/store || exit 1
+            
+            # Copy production environment file (already exists in repo)
+            cp ./store-backend/.env.production ./store-backend/.env
+            
+            # Create production environment variables file for Docker Compose
+            cat > .env << EOF
+            DOCKER_HUB_USERNAME=guzixuan202507142
+            POSTGRES_USER=store
+            POSTGRES_PASSWORD=123456
+            POSTGRES_DB=store
+            EOF
+            
+            # Login to Docker Hub
+            echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "guzixuan202507142" --password-stdin
+            
+            # Pull the latest images
+            docker pull guzixuan202507142/copilot-store-backend:latest
+            docker pull guzixuan202507142/copilot-store-frontend:latest
+            
+            # Stop and remove old containers
+            docker-compose -f docker-compose.prod.yml down
+            
+            # Start new containers
+            docker-compose -f docker-compose.prod.yml up -d
+            
+            # Wait for services to be healthy
+            sleep 30
+            
+            # Check if services are running
+            docker-compose -f docker-compose.prod.yml ps
+            
+            # Clean up dangling images
+            docker image prune -f
+            
+            # Logout from Docker Hub
+            docker logout

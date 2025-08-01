@@ -72,11 +72,22 @@ const sendMessage = async () => {
   if (!text || isTyping.value) return;
 
   const userMessage = { role: 'user', text, timestamp: new Date() };
-  await saveMessage(sessionId.value, userMessage);
+  
+  try {
+    await saveMessage(sessionId.value, userMessage);
+  } catch (error) {
+    console.error('Failed to save user message:', error);
+    // Still continue with AI response even if saving fails
+  }
+  
   userInput.value = '';
   isTyping.value = true;
 
   try {
+    if (!geminiModel) {
+      throw new Error('AI service not available');
+    }
+
     const chat = geminiModel.startChat({
         history: messages.value.map(m => ({
             role: m.role,
@@ -88,75 +99,30 @@ const sendMessage = async () => {
     const aiText = response.text();
 
     const aiMessage = { role: 'model', text: aiText, timestamp: new Date() };
-    await saveMessage(sessionId.value, aiMessage);
+    try {
+      await saveMessage(sessionId.value, aiMessage);
+    } catch (saveError) {
+      console.error('Failed to save AI message:', saveError);
+      // Add to local state even if Firebase save fails
+      messages.value.push(aiMessage);
+    }
 
   } catch (error) {
-    console.error("Gemini API error:", error);
-    const errorMessage = { role: 'model', text: '抱歉，我暂时无法回答。请稍后再试。', timestamp: new Date() };
-    await saveMessage(sessionId.value, errorMessage);
+    console.error("AI service error:", error);
+    const errorMessage = { 
+      role: 'model', 
+      text: '抱歉，AI 服务暂时不可用。请稍后再试。', 
+      timestamp: new Date() 
+    };
+    try {
+      await saveMessage(sessionId.value, errorMessage);
+    } catch (saveError) {
+      console.error('Failed to save error message:', saveError);
+      messages.value.push(errorMessage);
+    }
   } finally {
     isTyping.value = false;
   }
-};
-</script>
-
-<script setup>
-import { ref, nextTick } from 'vue';
-import { useAppStore } from '@/stores/appStore';
-
-const appStore = useAppStore();
-const currentMessage = ref('');
-const messagesContainer = ref(null);
-
-const sendMessage = async () => {
-  if (!currentMessage.value.trim()) return;
-
-  // Add user message
-  const userMessage = {
-    id: Date.now(),
-    role: 'user',
-    text: currentMessage.value
-  };
-  appStore.addMessage(userMessage);
-
-  const messageText = currentMessage.value;
-  currentMessage.value = '';
-
-  // Scroll to bottom
-  await nextTick();
-  scrollToBottom();
-
-  // Simulate AI response (replace with actual AI integration)
-  setTimeout(() => {
-    const aiResponse = {
-      id: Date.now() + 1,
-      role: 'ai',
-      text: generateAIResponse(messageText)
-    };
-    appStore.addMessage(aiResponse);
-    
-    nextTick(() => {
-      scrollToBottom();
-    });
-  }, 1000);
-};
-
-const scrollToBottom = () => {
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
-  }
-};
-
-const generateAIResponse = (userMessage) => {
-  // Simple response logic - replace with actual AI integration
-  const responses = [
-    '感谢您的问题！GitHub Copilot 学生包提供免费的 AI 编程助手服务。',
-    '您可以通过学生邮箱申请 GitHub 学生包，其中包含 Copilot 的免费使用权限。',
-    '如果您需要更多帮助，请访问 GitHub Education 官网了解详细信息。',
-    '我很乐意为您解答关于 GitHub Copilot 的任何问题！'
-  ];
-  
-  return responses[Math.floor(Math.random() * responses.length)];
 };
 </script>
 
