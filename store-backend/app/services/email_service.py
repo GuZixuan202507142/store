@@ -57,6 +57,34 @@ class EmailService:
             
         except Exception as e:
             logger.error(f"Failed to send email to {customer_email}: {str(e)}")
+
+    async def send_purchase_confirmation(self, to_email: str, order_id: int):
+        """Send purchase confirmation email for GitHub Copilot Education Edition"""
+        try:
+            subject = "GitHub Copilot Education Edition - Purchase Confirmation"
+            body = f"""
+            Dear Customer,
+            
+            Thank you for purchasing GitHub Copilot Education Edition!
+            
+            Order ID: {order_id}
+            Product: GitHub Copilot Education Edition
+            
+            Your access will be activated shortly. You will receive additional instructions 
+            on how to access your GitHub Copilot Education Edition account.
+            
+            If you have any questions, please don't hesitate to contact our support team.
+            
+            Best regards,
+            The Copilot Store Team
+            """
+            
+            await self._send_email(to_email, subject, body)
+            logger.info(f"Purchase confirmation email sent to {to_email}")
+            
+        except Exception as e:
+            logger.error(f"Failed to send purchase confirmation email to {to_email}: {str(e)}")
+            raise
             
     async def _send_email(self, to_email: str, subject: str, body: str):
         """Internal method to send email using Gmail API"""
