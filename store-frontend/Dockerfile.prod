@@ -1,5 +1,5 @@
 # Stage 1: Build the Vue.js application
-FROM node:18-alpine as build-stage
+FROM node:20-alpine as build-stage
 WORKDIR /app
 COPY store-frontend/package.json store-frontend/pnpm-lock.yaml ./
 RUN npm install -g pnpm && pnpm install --frozen-lockfile

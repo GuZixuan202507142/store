@@ -71,3 +71,25 @@ export async function askGemini(prompt, history) {
   //   body: JSON.stringify({ prompt, history }),
   // });
 }
+
+// API methods
+export async function get(endpoint) {
+  return request(endpoint, { method: 'GET' });
+}
+
+export async function post(endpoint, data) {
+  return request(endpoint, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// Default export for backward compatibility
+const api = {
+  get,
+  post,
+  createCheckoutSession,
+  askGemini,
+};
+
+export default api;
