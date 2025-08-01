@@ -64,10 +64,27 @@ jobs:
           password: ${{ secrets.DO_DROPLET_PASSWORD }}
           envs: REGISTRY,IMAGE_NAME_BACKEND,IMAGE_NAME_FRONTEND,DO_TOKEN
           script: |
-            cd ~/store || exit 1
+            echo "Setting up project directory..."
+            mkdir -p ~/store
+            cd ~/store
+            
+            echo "Checking if git repository exists..."
+            if [ ! -d .git ]; then
+              echo "Cloning repository..."
+              git clone https://github.com/GuZixuan202507142/store.git .
+            else
+              echo "Updating repository..."
+              git fetch origin
+              git reset --hard origin/main
+            fi
             
             echo "Copying production environment file..."
-            cp ./store-backend/.env.production ./store-backend/.env
+            if [ -f ./store-backend/.env.production ]; then
+              cp ./store-backend/.env.production ./store-backend/.env
+            else
+              echo "Warning: .env.production file not found, creating basic .env file"
+              touch ./store-backend/.env
+            fi
 
             echo "Logging into DigitalOcean Container Registry..."
             echo "$DO_TOKEN" | docker login registry.digitalocean.com -u $DO_TOKEN --password-stdin
@@ -77,7 +94,7 @@ jobs:
             docker pull $REGISTRY/$IMAGE_NAME_FRONTEND:latest
             
             echo "Stopping and removing old containers..."
-            docker-compose -f docker-compose.prod.yml down
+            docker-compose -f docker-compose.prod.yml down || true
             
             echo "Starting new containers..."
             docker-compose -f docker-compose.prod.yml up -d
