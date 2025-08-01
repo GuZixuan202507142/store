@@ -12,13 +12,13 @@ services:
     networks:
       - store-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U store"]
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   backend:
-    image: ${DOCKER_HUB_USERNAME}/copilot-store-backend:latest
+    image: registry.digitalocean.com/mystore/copilot-store-backend:latest
     container_name: store-backend-prod
     restart: always
     ports:
@@ -30,27 +30,18 @@ services:
         condition: service_healthy
     networks:
       - store-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   frontend:
-    image: ${DOCKER_HUB_USERNAME}/copilot-store-frontend:latest
+    image: registry.digitalocean.com/mystore/copilot-store-frontend:latest
     container_name: store-frontend-prod
     restart: always
     ports:
       - "80:80"
+      - "443:443"
     depends_on:
       - backend
     networks:
       - store-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   postgres_data:

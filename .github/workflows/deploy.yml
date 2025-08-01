@@ -1,4 +1,4 @@
-name: Deploy to DigitalOcean
+name: Build, Push, and Deploy to DigitalOcean
 
 on:
   push:
@@ -7,23 +7,28 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: docker.io
+  REGISTRY: registry.digitalocean.com/mystore
+  IMAGE_NAME_BACKEND: copilot-store-backend
+  IMAGE_NAME_FRONTEND: copilot-store-frontend
 
 jobs:
   build-and-push:
+    name: Build and Push Images
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 1200
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: guzixuan202507142
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build and push backend image
         uses: docker/build-push-action@v5
@@ -31,9 +36,7 @@ jobs:
           context: ./store-backend
           file: ./store-backend/Dockerfile.prod
           push: true
-          tags: guzixuan202507142/copilot-store-backend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
@@ -41,11 +44,10 @@ jobs:
           context: ./store-frontend
           file: ./store-frontend/Dockerfile.prod
           push: true
-          tags: guzixuan202507142/copilot-store-frontend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
 
-  deploy:
+deploy:
+    name: Deploy to Droplet
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
@@ -56,41 +58,22 @@ jobs:
           username: root
           password: ${{ secrets.DO_DROPLET_PASSWORD }}
           script: |
-            # Ensure we're in the project directory
             cd ~/store || exit 1
             
-            # Copy production environment file (already exists in repo)
+            echo "Copying production environment file..."
             cp ./store-backend/.env.production ./store-backend/.env
+
+            echo "Logging into DigitalOcean Container Registry..."
+            echo "${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}" | docker login registry.digitalocean.com -u ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} --password-stdin
             
-            # Create production environment variables file for Docker Compose
-            cat > .env << EOF
-            DOCKER_HUB_USERNAME=guzixuan202507142
-            POSTGRES_USER=store
-            POSTGRES_PASSWORD=123456
-            POSTGRES_DB=store
-            EOF
+            echo "Pulling latest images..."
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
             
-            # Login to Docker Hub
-            echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "guzixuan202507142" --password-stdin
-            
-            # Pull the latest images
-            docker pull guzixuan202507142/copilot-store-backend:latest
-            docker pull guzixuan202507142/copilot-store-frontend:latest
-            
-            # Stop and remove old containers
+            echo "Stopping and removing old containers..."
             docker-compose -f docker-compose.prod.yml down
             
-            # Start new containers
+            echo "Starting new containers..."
             docker-compose -f docker-compose.prod.yml up -d
             
-            # Wait for services to be healthy
-            sleep 30
-            
-            # Check if services are running
-            docker-compose -f docker-compose.prod.yml ps
-            
-            # Clean up dangling images
-            docker image prune -f
-            
-            # Logout from Docker Hub
-            docker logout
+            echo "Deployment complete."
