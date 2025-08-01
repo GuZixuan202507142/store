@@ -22,8 +22,8 @@ async def create_stripe_checkout_session(email: str, price_id: str) -> str:
     Creates a Stripe Checkout session.
     """
     try:
-        # In newer Stripe versions, use stripe.Session directly
-        checkout_session = stripe.Session.create(
+        # Correct Stripe API usage
+        checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[
                 {
