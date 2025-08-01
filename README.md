@@ -103,7 +103,9 @@ This will start:
 | `STRIPE_WEBHOOK_SECRET` | Backend | Stripe webhook endpoint secret |
 | `STRIPE_PRICE_ID` | Backend | Stripe product price ID |
 | `FRONTEND_URL` | Backend | Frontend URL for CORS and redirects |
-| `GMAIL_CREDENTIALS_JSON` | Backend | Google OAuth2 credentials |
+| `GMAIL_CLIENT_ID` | Backend | Google OAuth2 client ID |
+| `GMAIL_CLIENT_SECRET` | Backend | Google OAuth2 client secret |
+| `GMAIL_REFRESH_TOKEN` | Backend | Google OAuth2 refresh token |
 | `EMAIL_SENDER` | Backend | Email address for notifications |
 | `GEMINI_API_KEY` | Backend | Google Gemini API key |
 | `VITE_API_BASE_URL` | Frontend | Backend API base URL |

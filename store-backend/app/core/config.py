@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     FRONTEND_URL: str
 
     # Gmail API OAuth2
-    GMAIL_CREDENTIALS_JSON: str
+    GMAIL_CLIENT_ID: str
+    GMAIL_CLIENT_SECRET: str
+    GMAIL_REFRESH_TOKEN: str
     EMAIL_SENDER: str
 
     # Gemini API
