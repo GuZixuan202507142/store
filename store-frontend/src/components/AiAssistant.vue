@@ -1,26 +1,26 @@
 <template>
   <div class="ai-assistant">
     <button 
-      @click="toggleChat" 
+      @click="appStore.toggleChat" 
       class="ai-button"
-      :class="{ 'active': isOpen }"
+      :class="{ 'active': appStore.isChatOpen }"
     >
-      <span v-if="!isOpen">💬</span>
-      <span v-else">✕</span>
+      <span v-if="!appStore.isChatOpen">💬</span>
+      <span v-else>✕</span>
     </button>
     
-    <div v-if="isOpen" class="ai-chat-window">
+    <div v-if="appStore.isChatOpen" class="ai-chat-window">
       <div class="ai-header">
         <h3>AI Assistant</h3>
-        <p>How can I help you today?</p>
+        <p>有什么可以帮助您的吗？</p>
       </div>
       
       <div class="ai-messages" ref="messagesContainer">
         <div 
-          v-for="message in messages" 
+          v-for="message in appStore.chatMessages" 
           :key="message.id"
           class="ai-message"
-          :class="message.type"
+          :class="message.role"
         >
           <p>{{ message.text }}</p>
         </div>
@@ -30,86 +30,80 @@
         <input 
           v-model="currentMessage"
           @keyup.enter="sendMessage"
-          placeholder="Type your message..."
+          placeholder="请输入您的问题..."
           class="ai-input-field"
         />
-        <button @click="sendMessage" class="ai-send-btn">Send</button>
+        <button @click="sendMessage" class="ai-send-btn">发送</button>
       </div>
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'AiAssistant',
-  data() {
-    return {
-      isOpen: false,
-      currentMessage: '',
-      messages: [
-        {
-          id: 1,
-          text: 'Hello! I\'m here to help you with your shopping experience.',
-          type: 'assistant'
-        }
-      ]
-    }
-  },
-  methods: {
-    toggleChat() {
-      this.isOpen = !this.isOpen
-    },
-    sendMessage() {
-      if (!this.currentMessage.trim()) return
-      
-      // Add user message
-      this.messages.push({
-        id: Date.now(),
-        text: this.currentMessage,
-        type: 'user'
-      })
-      
-      const userMessage = this.currentMessage
-      this.currentMessage = ''
-      
-      // Simulate AI response
-      setTimeout(() => {
-        this.messages.push({
-          id: Date.now(),
-          text: this.generateResponse(userMessage),
-          type: 'assistant'
-        })
-        this.scrollToBottom()
-      }, 1000)
-      
-      this.scrollToBottom()
-    },
-    generateResponse(message) {
-      // Simple response logic - in production, this would call the Gemini API
-      const responses = [
-        'That\'s a great question! Let me help you with that.',
-        'I understand what you\'re looking for. Here\'s what I recommend...',
-        'Based on your query, I can suggest the following options.',
-        'Let me provide you with more information about that.'
-      ]
-      return responses[Math.floor(Math.random() * responses.length)]
-    },
-    scrollToBottom() {
-      this.$nextTick(() => {
-        if (this.$refs.messagesContainer) {
-          this.$refs.messagesContainer.scrollTop = this.$refs.messagesContainer.scrollHeight
-        }
-      })
-    }
+<script setup>
+import { ref, nextTick } from 'vue';
+import { useAppStore } from '@/stores/appStore';
+
+const appStore = useAppStore();
+const currentMessage = ref('');
+const messagesContainer = ref(null);
+
+const sendMessage = async () => {
+  if (!currentMessage.value.trim()) return;
+
+  // Add user message
+  const userMessage = {
+    id: Date.now(),
+    role: 'user',
+    text: currentMessage.value
+  };
+  appStore.addMessage(userMessage);
+
+  const messageText = currentMessage.value;
+  currentMessage.value = '';
+
+  // Scroll to bottom
+  await nextTick();
+  scrollToBottom();
+
+  // Simulate AI response (replace with actual AI integration)
+  setTimeout(() => {
+    const aiResponse = {
+      id: Date.now() + 1,
+      role: 'ai',
+      text: generateAIResponse(messageText)
+    };
+    appStore.addMessage(aiResponse);
+    
+    nextTick(() => {
+      scrollToBottom();
+    });
+  }, 1000);
+};
+
+const scrollToBottom = () => {
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
   }
-}
+};
+
+const generateAIResponse = (userMessage) => {
+  // Simple response logic - replace with actual AI integration
+  const responses = [
+    '感谢您的问题！GitHub Copilot 学生包提供免费的 AI 编程助手服务。',
+    '您可以通过学生邮箱申请 GitHub 学生包，其中包含 Copilot 的免费使用权限。',
+    '如果您需要更多帮助，请访问 GitHub Education 官网了解详细信息。',
+    '我很乐意为您解答关于 GitHub Copilot 的任何问题！'
+  ];
+  
+  return responses[Math.floor(Math.random() * responses.length)];
+};
 </script>
 
 <style scoped>
 .ai-assistant {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
+  bottom: 20px;
+  right: 20px;
   z-index: 1000;
 }
 
@@ -117,18 +111,25 @@ export default {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   border: none;
   color: white;
-  font-size: 1.5rem;
+  font-size: 24px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .ai-button:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  transform: scale(1.1);
+  box-shadow: 0 6px 25px rgba(59, 130, 246, 0.6);
+}
+
+.ai-button.active {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
 .ai-chat-window {
@@ -136,94 +137,117 @@ export default {
   bottom: 80px;
   right: 0;
   width: 350px;
-  height: 500px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  height: 450px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .ai-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
-  padding: 1rem;
   text-align: center;
 }
 
 .ai-header h3 {
-  margin-bottom: 0.25rem;
-  font-size: 1.1rem;
+  margin: 0 0 5px 0;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 .ai-header p {
-  font-size: 0.9rem;
+  margin: 0;
+  font-size: 14px;
   opacity: 0.9;
 }
 
 .ai-messages {
   flex: 1;
-  padding: 1rem;
+  padding: 20px;
   overflow-y: auto;
-  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .ai-message {
-  margin-bottom: 1rem;
   max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .ai-message.user {
-  margin-left: auto;
-}
-
-.ai-message.user p {
-  background: #667eea;
+  align-self: flex-end;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
-  padding: 0.75rem;
-  border-radius: 12px 12px 4px 12px;
 }
 
-.ai-message.assistant p {
-  background: white;
-  color: #374151;
-  padding: 0.75rem;
-  border-radius: 12px 12px 12px 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.ai-message.ai {
+  align-self: flex-start;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.ai-message p {
+  margin: 0;
 }
 
 .ai-input {
   display: flex;
-  padding: 1rem;
-  background: white;
-  border-top: 1px solid #e5e7eb;
+  padding: 20px;
+  gap: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .ai-input-field {
   flex: 1;
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  margin-right: 0.5rem;
+  padding: 12px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  font-size: 14px;
   outline: none;
+  transition: border-color 0.3s ease;
 }
 
 .ai-input-field:focus {
-  border-color: #667eea;
+  border-color: #3b82f6;
 }
 
 .ai-send-btn {
-  padding: 0.75rem 1rem;
-  background: #667eea;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
 .ai-send-btn:hover {
-  background: #5a67d8;
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .ai-chat-window {
+    width: 300px;
+    height: 400px;
+    right: -10px;
+  }
+  
+  .ai-assistant {
+    bottom: 15px;
+    right: 15px;
+  }
 }
 </style>

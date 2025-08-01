@@ -1,29 +1,17 @@
 <template>
   <div id="app">
     <Navbar />
-    <main>
-      <HomeView />
-    </main>
+    <HeroSection />
     <AppFooter />
     <AiAssistant />
   </div>
 </template>
 
-<script>
+<script setup>
 import Navbar from './components/Navbar.vue'
+import HeroSection from './components/HeroSection.vue'
 import AppFooter from './components/AppFooter.vue'
 import AiAssistant from './components/AiAssistant.vue'
-import HomeView from './views/HomeView.vue'
-
-export default {
-  name: 'App',
-  components: {
-    Navbar,
-    AppFooter,
-    AiAssistant,
-    HomeView
-  }
-}
 </script>
 
 <style>
