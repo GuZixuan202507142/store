@@ -4,6 +4,10 @@ WORKDIR /app
 COPY store-frontend/package.json store-frontend/pnpm-lock.yaml ./
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
 COPY store-frontend/ .
+
+# Copy environment file for build
+COPY store-frontend/.env.production .env.production
+
 RUN pnpm run build
 
 # Stage 2: Serve the built assets with Nginx
