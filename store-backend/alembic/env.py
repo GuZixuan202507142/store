@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 # Import our models
 from app.models.order import Order
+from app.models.inventory import CopilotAccount
 from app.core.config import settings
 
 # this is the Alembic Config object, which provides

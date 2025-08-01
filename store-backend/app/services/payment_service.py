@@ -5,6 +5,7 @@ from sqlmodel import select
 from app.core.config import settings
 from app.models.order import Order
 from . import email_service
+from .inventory_service import inventory_service
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -95,7 +96,44 @@ async def handle_stripe_webhook(payload: bytes, sig_header: str, db: AsyncSessio
             
             logger.info(f"Created order {new_order.id} for customer {customer_email}")
 
-            # Send a confirmation email
+            # 🔥 核心业务逻辑：分配GitHub Copilot账号
+            account_type = "education"  # 根据产品类型确定账号类型
+            if "pro" in product_name.lower():
+                account_type = "pro"
+            elif "business" in product_name.lower():
+                account_type = "business"
+            
+            # 从库存中获取可用账号
+            available_account = await inventory_service.get_available_account(account_type, db)
+            
+            if available_account:
+                # 分配账号给客户
+                success = await inventory_service.assign_account(
+                    available_account, customer_email, new_order.id, db
+                )
+                
+                if success:
+                    logger.info(f"成功分配账号 {available_account.email} 给客户 {customer_email}")
+                    
+                    # 发送账号密码邮件
+                    try:
+                        await email_service.send_account_credentials(
+                            to_email=customer_email,
+                            account_email=available_account.email,
+                            account_password=available_account.password,
+                            order_id=new_order.id
+                        )
+                        logger.info(f"已发送账号密码到 {customer_email}")
+                    except Exception as email_error:
+                        logger.error(f"发送账号密码邮件失败: {str(email_error)}")
+                        # 账号已分配，但邮件发送失败，需要手动处理
+                else:
+                    logger.error(f"分配账号失败，客户: {customer_email}")
+            else:
+                logger.error(f"没有可用的 {account_type} 账号！客户: {customer_email}")
+                # 应该发送缺货通知或退款
+
+            # 发送订单确认邮件（原有逻辑）
             try:
                 await email_service.send_purchase_confirmation(
                     to_email=customer_email,
