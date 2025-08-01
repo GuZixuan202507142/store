@@ -9,7 +9,13 @@ from . import email_service
 # Configure logging
 logger = logging.getLogger(__name__)
 
-stripe.api_key = settings.STRIPE_API_KEY
+# Initialize Stripe with API key
+if settings.STRIPE_API_KEY:
+    stripe.api_key = settings.STRIPE_API_KEY
+    logger.info(f"Stripe API key initialized with key ending in: {settings.STRIPE_API_KEY[-4:]}")
+else:
+    logger.error("STRIPE_API_KEY not found in environment variables")
+    raise ValueError("STRIPE_API_KEY not configured")
 
 async def create_stripe_checkout_session(email: str, price_id: str) -> str:
     """

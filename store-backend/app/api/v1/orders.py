@@ -8,7 +8,7 @@ from app.db.session import get_session
 
 router = APIRouter()
 
-@router.get("/orders", response_model=List[OrderResponse])
+@router.get("/", response_model=List[OrderResponse])
 async def get_orders(db: AsyncSession = Depends(get_session)):
     """Get all orders"""
     try:
@@ -19,7 +19,7 @@ async def get_orders(db: AsyncSession = Depends(get_session)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/orders/{order_id}", response_model=OrderResponse)
+@router.get("/{order_id}", response_model=OrderResponse)
 async def get_order(order_id: int, db: AsyncSession = Depends(get_session)):
     """Get a specific order"""
     try:
@@ -36,7 +36,7 @@ async def get_order(order_id: int, db: AsyncSession = Depends(get_session)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/orders/email/{email}", response_model=List[OrderResponse])
+@router.get("/email/{email}", response_model=List[OrderResponse])
 async def get_orders_by_email(email: str, db: AsyncSession = Depends(get_session)):
     """Get orders by customer email"""
     try:
