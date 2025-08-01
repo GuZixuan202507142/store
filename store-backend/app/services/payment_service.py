@@ -22,7 +22,8 @@ async def create_stripe_checkout_session(email: str, price_id: str) -> str:
     Creates a Stripe Checkout session.
     """
     try:
-        checkout_session = stripe.checkout.Session.create(
+        # In newer Stripe versions, use stripe.Session directly
+        checkout_session = stripe.Session.create(
             payment_method_types=['card'],
             line_items=[
                 {
@@ -37,12 +38,9 @@ async def create_stripe_checkout_session(email: str, price_id: str) -> str:
         )
         logger.info(f"Created checkout session {checkout_session.id} for {email}")
         return checkout_session.url
-    except stripe.error.StripeError as e:
-        logger.error(f"Stripe error creating checkout session: {str(e)}")
-        raise Exception(f"Payment processing error: {str(e)}")
     except Exception as e:
-        logger.error(f"Unexpected error creating checkout session: {str(e)}")
-        raise
+        logger.error(f"Stripe error creating checkout session: {type(e).__name__}: {str(e)}")
+        raise Exception(f"Payment processing error: {str(e)}")
 
 async def handle_stripe_webhook(payload: bytes, sig_header: str, db: AsyncSession):
     """
