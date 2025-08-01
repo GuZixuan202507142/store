@@ -1,43 +1,104 @@
 <template>
   <div class="ai-assistant">
-    <button 
-      @click="appStore.toggleChat" 
-      class="ai-button"
-      :class="{ 'active': appStore.isChatOpen }"
-    >
-      <span v-if="!appStore.isChatOpen">💬</span>
+    <button class="ai-toggle" @click="appStore.toggleChat">
+      <span v-if="!appStore.isChatOpen">AI 助手</span>
       <span v-else>✕</span>
     </button>
     
-    <div v-if="appStore.isChatOpen" class="ai-chat-window">
-      <div class="ai-header">
-        <h3>AI Assistant</h3>
-        <p>有什么可以帮助您的吗？</p>
-      </div>
-      
-      <div class="ai-messages" ref="messagesContainer">
-        <div 
-          v-for="message in appStore.chatMessages" 
-          :key="message.id"
-          class="ai-message"
-          :class="message.role"
-        >
-          <p>{{ message.text }}</p>
+    <div class="ai-chat" :class="{ active: appStore.isChatOpen }">
+      <div class="chat-header">AI 助手</div>
+      <div class="chat-messages" ref="messagesContainer">
+        <div v-for="msg in messages" :key="msg.id" class="message" :class="msg.role === 'user' ? 'user-message' : 'ai-message'">
+          {{ msg.text }}
+        </div>
+        <div v-if="isTyping" class="message ai-message typing-indicator">
+          <span></span><span></span><span></span>
         </div>
       </div>
-      
-      <div class="ai-input">
+      <div class="chat-input-container">
         <input 
-          v-model="currentMessage"
-          @keyup.enter="sendMessage"
-          placeholder="请输入您的问题..."
-          class="ai-input-field"
-        />
-        <button @click="sendMessage" class="ai-send-btn">发送</button>
+          type="text" 
+          class="chat-input" 
+          placeholder="输入您的问题..." 
+          v-model="userInput"
+          @keypress.enter="sendMessage"
+          :disabled="isTyping"
+        >
+        <button class="send-button" @click="sendMessage" :disabled="isTyping">发送</button>
       </div>
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted, watch, nextTick } from 'vue';
+import { useAppStore } from '@/stores/appStore';
+import { geminiModel, saveMessage, getChatHistory } from '@/services/firebase';
+import { v4 as uuidv4 } from 'uuid';
+
+const appStore = useAppStore();
+const userInput = ref('');
+const messages = ref([]);
+const isTyping = ref(false);
+const messagesContainer = ref(null);
+const sessionId = ref(null);
+
+onMounted(() => {
+  let storedSessionId = localStorage.getItem('chatSessionId');
+  if (!storedSessionId) {
+    storedSessionId = uuidv4();
+    localStorage.setItem('chatSessionId', storedSessionId);
+  }
+  sessionId.value = storedSessionId;
+
+  getChatHistory(sessionId.value, (history) => {
+    messages.value = history;
+    scrollToBottom();
+  });
+});
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    }
+  });
+};
+
+watch(messages, scrollToBottom, { deep: true });
+
+const sendMessage = async () => {
+  const text = userInput.value.trim();
+  if (!text || isTyping.value) return;
+
+  const userMessage = { role: 'user', text, timestamp: new Date() };
+  await saveMessage(sessionId.value, userMessage);
+  userInput.value = '';
+  isTyping.value = true;
+
+  try {
+    const chat = geminiModel.startChat({
+        history: messages.value.map(m => ({
+            role: m.role,
+            parts: [{ text: m.text }]
+        })),
+    });
+    const result = await chat.sendMessage(text);
+    const response = await result.response;
+    const aiText = response.text();
+
+    const aiMessage = { role: 'model', text: aiText, timestamp: new Date() };
+    await saveMessage(sessionId.value, aiMessage);
+
+  } catch (error) {
+    console.error("Gemini API error:", error);
+    const errorMessage = { role: 'model', text: '抱歉，我暂时无法回答。请稍后再试。', timestamp: new Date() };
+    await saveMessage(sessionId.value, errorMessage);
+  } finally {
+    isTyping.value = false;
+  }
+};
+</script>
 
 <script setup>
 import { ref, nextTick } from 'vue';
@@ -107,7 +168,7 @@ const generateAIResponse = (userMessage) => {
   z-index: 1000;
 }
 
-.ai-button {
+.ai-toggle {
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -123,16 +184,12 @@ const generateAIResponse = (userMessage) => {
   justify-content: center;
 }
 
-.ai-button:hover {
+.ai-toggle:hover {
   transform: scale(1.1);
   box-shadow: 0 6px 25px rgba(59, 130, 246, 0.6);
 }
 
-.ai-button.active {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-}
-
-.ai-chat-window {
+.ai-chat {
   position: absolute;
   bottom: 80px;
   right: 0;
@@ -143,31 +200,25 @@ const generateAIResponse = (userMessage) => {
   border-radius: 20px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  display: flex;
+  display: none;
   flex-direction: column;
   overflow: hidden;
 }
 
-.ai-header {
+.ai-chat.active {
+  display: flex;
+}
+
+.chat-header {
   padding: 20px;
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
   text-align: center;
-}
-
-.ai-header h3 {
-  margin: 0 0 5px 0;
   font-size: 18px;
   font-weight: 600;
 }
 
-.ai-header p {
-  margin: 0;
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-.ai-messages {
+.chat-messages {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
@@ -176,7 +227,7 @@ const generateAIResponse = (userMessage) => {
   gap: 15px;
 }
 
-.ai-message {
+.message {
   max-width: 80%;
   padding: 12px 16px;
   border-radius: 18px;
@@ -184,30 +235,58 @@ const generateAIResponse = (userMessage) => {
   line-height: 1.4;
 }
 
-.ai-message.user {
+.user-message {
   align-self: flex-end;
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
 }
 
-.ai-message.ai {
+.ai-message {
   align-self: flex-start;
   background: #f1f5f9;
   color: #334155;
 }
 
-.ai-message p {
-  margin: 0;
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.ai-input {
+.typing-indicator span {
+  height: 8px;
+  width: 8px;
+  background-color: #9e9ea3;
+  border-radius: 50%;
+  display: inline-block;
+  animation: bounce 1.3s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-of-type(2) { 
+  animation-delay: -1.1s; 
+}
+
+.typing-indicator span:nth-of-type(3) { 
+  animation-delay: -0.9s; 
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { 
+    transform: scale(0); 
+  }
+  40% { 
+    transform: scale(1.0); 
+  }
+}
+
+.chat-input-container {
   display: flex;
   padding: 20px;
   gap: 10px;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.ai-input-field {
+.chat-input {
   flex: 1;
   padding: 12px 16px;
   border: 1px solid rgba(0, 0, 0, 0.1);
@@ -217,11 +296,11 @@ const generateAIResponse = (userMessage) => {
   transition: border-color 0.3s ease;
 }
 
-.ai-input-field:focus {
+.chat-input:focus {
   border-color: #3b82f6;
 }
 
-.ai-send-btn {
+.send-button {
   padding: 12px 20px;
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
@@ -233,13 +312,18 @@ const generateAIResponse = (userMessage) => {
   transition: all 0.3s ease;
 }
 
-.ai-send-btn:hover {
+.send-button:hover {
   background: linear-gradient(135deg, #2563eb, #1e40af);
   transform: translateY(-1px);
 }
 
+.send-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
-  .ai-chat-window {
+  .ai-chat {
     width: 300px;
     height: 400px;
     right: -10px;
