@@ -46,17 +46,23 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
 
-deploy:
+  deploy:
     name: Deploy to Droplet
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to DigitalOcean Droplet
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME_BACKEND: ${{ env.IMAGE_NAME_BACKEND }}
+          IMAGE_NAME_FRONTEND: ${{ env.IMAGE_NAME_FRONTEND }}
+          DO_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
         with:
           host: ${{ secrets.DO_DROPLET_IP }}
           username: root
           password: ${{ secrets.DO_DROPLET_PASSWORD }}
+          envs: REGISTRY,IMAGE_NAME_BACKEND,IMAGE_NAME_FRONTEND,DO_TOKEN
           script: |
             cd ~/store || exit 1
             
@@ -64,11 +70,11 @@ deploy:
             cp ./store-backend/.env.production ./store-backend/.env
 
             echo "Logging into DigitalOcean Container Registry..."
-            echo "${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}" | docker login registry.digitalocean.com -u ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} --password-stdin
+            echo "$DO_TOKEN" | docker login registry.digitalocean.com -u $DO_TOKEN --password-stdin
             
             echo "Pulling latest images..."
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
+            docker pull $REGISTRY/$IMAGE_NAME_BACKEND:latest
+            docker pull $REGISTRY/$IMAGE_NAME_FRONTEND:latest
             
             echo "Stopping and removing old containers..."
             docker-compose -f docker-compose.prod.yml down
