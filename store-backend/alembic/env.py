@@ -19,8 +19,11 @@ from app.core.config import settings
 # access to the values within the .ini file in use.
 config = context.config
 
-# Set the database URL from our settings
-config.set_main_option('sqlalchemy.url', settings.DATABASE_URL)
+# Set the database URL from our settings - convert async URL to sync for Alembic
+database_url = settings.DATABASE_URL
+if database_url.startswith("postgresql+asyncpg://"):
+    database_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
+config.set_main_option('sqlalchemy.url', database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
