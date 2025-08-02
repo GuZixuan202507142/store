@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import payments, orders
+from app.api.v1 import payments, ai
 from app.db.session import init_db
 from app.core.config import settings
 
@@ -25,7 +25,7 @@ async def on_startup():
 
 # Include API routers
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["Payments"])
-app.include_router(orders.router, prefix="/api/v1/orders", tags=["Orders"])
+app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI"])
 
 @app.get("/health")
 def health_check():

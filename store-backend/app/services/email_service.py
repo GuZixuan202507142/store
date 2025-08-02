@@ -33,48 +33,6 @@ def get_gmail_service():
         logger.error(f"Failed to create Gmail service: {e}")
         return None
 
-async def send_purchase_confirmation(to_email: str, order_id: int):
-    """Sends a purchase confirmation email."""
-    service = get_gmail_service()
-    if not service:
-        logger.error("Gmail service not available. Skipping email.")
-        raise Exception("Email service unavailable")
-
-    # Validate email format
-    if not to_email or "@" not in to_email:
-        logger.error(f"Invalid email address: {to_email}")
-        raise ValueError("Invalid email address")
-
-    subject = "Your GitHub Copilot Purchase Confirmation"
-    body = f"""
-    <p>Hello,</p>
-    <p>Thank you for your purchase from our store!</p>
-    <p>Your Order ID is: <strong>{order_id}</strong>.</p>
-    <p>We have received your payment for the GitHub Copilot Education Edition account. You will receive another email shortly with your account details and setup instructions.</p>
-    <p>Thank you for your business!</p>
-    <p>Best regards,<br>The GitHub Copilot Store Team</p>
-    """
-    
-    try:
-        message = MIMEText(body, 'html')
-        message['to'] = to_email
-        message['from'] = SENDER_EMAIL
-        message['subject'] = subject
-        
-        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-        
-        create_message = {
-            'raw': encoded_message
-        }
-
-        send_message = (service.users().messages().send(userId='me', body=create_message).execute())
-        logger.info(f"Message Id: {send_message['id']} sent to {to_email}")
-        return send_message['id']
-        
-    except Exception as e:
-        logger.error(f"An error occurred while sending email to {to_email}: {e}")
-        raise Exception(f"Failed to send email: {str(e)}")
-
 async def send_account_credentials(to_email: str, account_email: str, account_password: str, order_id: int):
     """发送GitHub Copilot账号密码"""
     service = get_gmail_service()

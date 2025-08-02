@@ -60,63 +60,6 @@ class InventoryService:
             logger.error(f"分配账号时出错: {str(e)}")
             await db.rollback()
             return False
-    
-    @staticmethod
-    async def add_account_to_inventory(
-        email: str,
-        password: str, 
-        account_type: str,
-        db: AsyncSession,
-        notes: Optional[str] = None
-    ) -> Optional[CopilotAccount]:
-        """添加账号到库存"""
-        try:
-            new_account = CopilotAccount(
-                email=email,
-                password=password,
-                account_type=account_type,
-                status="available",
-                notes=notes
-            )
-            
-            db.add(new_account)
-            await db.commit()
-            await db.refresh(new_account)
-            
-            logger.info(f"成功添加账号到库存: {email} (类型: {account_type})")
-            return new_account
-            
-        except Exception as e:
-            logger.error(f"添加账号到库存时出错: {str(e)}")
-            await db.rollback()
-            return None
-    
-    @staticmethod
-    async def get_inventory_status(db: AsyncSession) -> dict:
-        """获取库存状态"""
-        try:
-            # 查询各类型账号数量
-            result = {}
-            
-            for account_type in ["education", "pro", "business"]:
-                for status in ["available", "assigned", "expired"]:
-                    statement = select(CopilotAccount).where(
-                        CopilotAccount.account_type == account_type,
-                        CopilotAccount.status == status
-                    )
-                    count_result = await db.exec(statement)
-                    count = len(count_result.all())
-                    
-                    if account_type not in result:
-                        result[account_type] = {}
-                    result[account_type][status] = count
-            
-            logger.info(f"库存状态: {result}")
-            return result
-            
-        except Exception as e:
-            logger.error(f"查询库存状态时出错: {str(e)}")
-            return {}
 
 # 创建全局实例
 inventory_service = InventoryService()
