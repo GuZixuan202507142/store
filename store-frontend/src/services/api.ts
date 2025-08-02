@@ -48,21 +48,16 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 }
 
 // API methods
-export async function get<T>(endpoint: string): Promise<T> {
-  return request<T>(endpoint, { method: 'GET' });
-}
-
-export async function post<T>(endpoint: string, data: unknown): Promise<T> {
-  return request<T>(endpoint, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-// Default export for backward compatibility
 const api = {
-  get,
-  post,
+  get: async <T>(endpoint: string): Promise<T> => {
+    return request<T>(endpoint, { method: 'GET' });
+  },
+  post: async <T>(endpoint: string, data: unknown): Promise<T> => {
+    return request<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 export default api;

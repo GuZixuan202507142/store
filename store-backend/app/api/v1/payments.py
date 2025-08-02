@@ -27,3 +27,33 @@ async def stripe_webhook(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e: # Handle other exceptions
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/inventory")
+async def get_inventory_count(db: AsyncSession = Depends(get_session)):
+    """
+
+    Returns the number of items in the inventory.
+    """
+    count = await payment_service.get_inventory_count(db)
+    return {"inventory_count": count}
+
+@router.post("/add-inventory")
+async def add_inventory_item(
+    request: Request,
+    db: AsyncSession = Depends(get_session)
+):
+    """
+    Adds a new item to the inventory.
+    """
+    data = await request.json()
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password are required.")
+
+    try:
+        await payment_service.add_inventory_item(username=username, password=password, db=db)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

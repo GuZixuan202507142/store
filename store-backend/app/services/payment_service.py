@@ -82,3 +82,15 @@ async def handle_stripe_webhook(payload: bytes, sig_header: str, db: AsyncSessio
     else:
         logger.info(f"Unhandled event type {event['type']}")
         print(f"Unhandled event type {event['type']}")
+
+async def get_inventory_count(db: AsyncSession):
+    """
+    Returns the number of items in the inventory.
+    """
+    return await inventory_service.get_inventory_count(db)
+
+async def add_inventory_item(username: str, password: str, db: AsyncSession):
+    """
+    Adds a new item to the inventory.
+    """
+    await inventory_service.add_inventory_item(username=username, password=password, db=db)

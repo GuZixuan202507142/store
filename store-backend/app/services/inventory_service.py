@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 from datetime import datetime, timedelta
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, func
 from app.models.inventory import CopilotAccount
 
 logger = logging.getLogger(__name__)
@@ -60,6 +60,32 @@ class InventoryService:
             logger.error(f"分配账号时出错: {str(e)}")
             await db.rollback()
             return False
+
+    @staticmethod
+    async def get_inventory_count(db: AsyncSession) -> int:
+        """获取库存中的项目数"""
+        try:
+            statement = select(func.count()).select_from(CopilotAccount).where(CopilotAccount.status == "available")
+            result = await db.exec(statement)
+            count = result.one()
+            return count
+        except Exception as e:
+            logger.error(f"查询库存数量时出错: {str(e)}")
+            return 0
+
+    @staticmethod
+    async def add_inventory_item(username: str, password: str, db: AsyncSession):
+        """向库存中添加一个新项目"""
+        try:
+            new_item = CopilotAccount(email=username, password=password, account_type="education", status="available")
+            db.add(new_item)
+            await db.commit()
+            await db.refresh(new_item)
+            logger.info(f"成功添加新库存项目: {username}")
+        except Exception as e:
+            logger.error(f"添加库存项目时出错: {str(e)}")
+            await db.rollback()
+            raise
 
 # 创建全局实例
 inventory_service = InventoryService()
